@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: corporate-travel-db
+    environment:
+      POSTGRES_DB: corporate_travel
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: changeme
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - corporate-travel-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: corporate-travel-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - corporate-travel-network
+
+  # Elasticsearch
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: corporate-travel-search
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - corporate-travel-network
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: corporate-travel-backend
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://admin:changeme@postgres:5432/corporate_travel
+      REDIS_URL: redis://redis:6379
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      JWT_SECRET: dev-secret-change-in-production
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      PORT: 8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+      - elasticsearch
+    volumes:
+      - ./src/backend:/app
+      - /app/node_modules
+    networks:
+      - corporate-travel-network
+    command: npm run dev
+
+  # AI Services
+  ai-services:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ai
+    container_name: corporate-travel-ai
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      DATABASE_URL: postgresql://admin:changeme@postgres:5432/corporate_travel
+      REDIS_URL: redis://redis:6379
+      PORT: 8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./src/ai-services:/app
+      - ./models:/models
+    networks:
+      - corporate-travel-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+
+  # Frontend Web App
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: corporate-travel-frontend
+    environment:
+      REACT_APP_API_URL: http://localhost:8000
+      REACT_APP_AI_URL: http://localhost:8001
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./src/frontend:/app
+      - /app/node_modules
+    networks:
+      - corporate-travel-network
+    command: npm start
+
+  # RabbitMQ Message Queue (Optional)
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: corporate-travel-queue
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: changeme
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - corporate-travel-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  elasticsearch_data:
+  rabbitmq_data:
+
+networks:
+  corporate-travel-network:
+    driver: bridge
