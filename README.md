@@ -183,27 +183,10 @@ npm run deploy:production
 4. Pass CI/CD checks
 5. Get code review approval
 
-## 📄 License
 
-MIT License - See LICENSE file for details
 
-## 📞 Support
 
-- **Documentation**: See `/docs` folder
-- **API Docs**: http://localhost:8000/api-docs
-- **Issues**: Create GitHub issues
-- **Email**: support@corporate-travel.com
 
-## 🌟 Inspiration
-
-This project is inspired by [Navan](https://www.navan.com), which successfully transformed from a traditional travel platform to an AI-native enterprise SaaS company, achieving:
-- 62% → 73% gross margin improvement
-- 7-minute average booking time
-- 50%+ AI-powered support automation
-
-Read the full analysis in [SUMMARY.md](./SUMMARY.md)
-
----
 
 **Created**: 2026-02-26
 **Status**: In Development
